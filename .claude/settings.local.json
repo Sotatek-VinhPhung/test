@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(powershell:*)",
+      "Bash(dotnet new sln:*)",
+      "Bash(dotnet new:*)",
+      "Bash(dir:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(python3:*)",
+      "Bash(cygpath -w /c/test/plans/260409-1416-binary-permissions/phase-4-api.md)",
+      "Bash(echo \"C:\\\\\\\\test\\\\\\\\plans\\\\\\\\260409-1416-binary-permissions\\\\\\\\phase-4-api.md\")",
+      "Bash(perl -e 'use File::Slurp; print \"test\\\\n\";')",
+      "Bash(perl -e 'open\\(my $fh, \">\", \"/c/test/plans/260409-1416-binary-permissions/test.txt\"\\) or die $!; print $fh \"test\"; close $fh; print \"perl write works\\\\n\";')",
+      "Bash(perl:*)"
+    ]
+  }
+}
