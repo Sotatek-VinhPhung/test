@@ -17,7 +17,10 @@
       "Bash(echo \"C:\\\\\\\\test\\\\\\\\plans\\\\\\\\260409-1416-binary-permissions\\\\\\\\phase-4-api.md\")",
       "Bash(perl -e 'use File::Slurp; print \"test\\\\n\";')",
       "Bash(perl -e 'open\\(my $fh, \">\", \"/c/test/plans/260409-1416-binary-permissions/test.txt\"\\) or die $!; print $fh \"test\"; close $fh; print \"perl write works\\\\n\";')",
-      "Bash(perl:*)"
+      "Bash(perl:*)",
+      "Bash(find:*)",
+      "Bash(mkdir -p /c/test/plans/reports)",
+      "Bash(wc:*)"
     ]
   }
 }

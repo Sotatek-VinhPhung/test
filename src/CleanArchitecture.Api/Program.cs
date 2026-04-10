@@ -1,5 +1,7 @@
 using CleanArchitecture.Application;
 using CleanArchitecture.Infrastructure;
+using CleanArchitecture.Infrastructure.Caching;
+using CleanArchitecture.Infrastructure.Messaging;
 using CleanArchitecture.Api.Extensions;
 using CleanArchitecture.Api.Authorization;
 using CleanArchitecture.Api.Middleware;
@@ -16,6 +18,8 @@ builder.Host.UseSerilog((context, configuration) =>
 // Layer DI registration
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddKafkaServices(builder.Configuration);
+builder.Services.AddCacheServices(builder.Configuration);
 
 // Permission authorization
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
