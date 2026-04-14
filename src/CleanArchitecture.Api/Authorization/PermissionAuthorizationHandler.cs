@@ -1,28 +1,59 @@
-using CleanArchitecture.Infrastructure.Auth;
+using CleanArchitecture.Application.Permissions;
+using CleanArchitecture.Application.Permissions.Interfaces;
+using CleanArchitecture.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 
 namespace CleanArchitecture.Api.Authorization;
 
 /// <summary>
-/// Checks JWT permission claims against the required flags using bitwise AND.
-/// Does NOT call context.Fail() — ASP.NET Core returns 403 when no handler succeeds.
+/// Checks user permissions against role subsystem permissions using new RBAC.
+/// Extracts user ID from JWT claims, then uses IPermissionService to verify permissions.
 /// </summary>
 public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
-    protected override Task HandleRequirementAsync(
+    private readonly IServiceProvider _serviceProvider;
+
+    public PermissionAuthorizationHandler(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+
+    protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
-        var claimValue = context.User.FindFirst(
-            PermissionClaimNames.ForModule(requirement.Module))?.Value;
+        // Get user ID from JWT claims
+        var userIdClaim = context.User.FindFirst("sub")?.Value ?? 
+                         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-        if (claimValue is not null && long.TryParse(claimValue, out var userFlags))
+        if (!Guid.TryParse(userIdClaim, out var userId))
         {
-            if ((userFlags & requirement.RequiredFlags) == requirement.RequiredFlags)
+            // No valid user ID in claims - fail silently (will result in 403)
+            return;
+        }
+
+        // Get permission service
+        var permissionService = _serviceProvider.GetRequiredService<IPermissionService>();
+
+        try
+        {
+            // Check if user has required permission in subsystem
+            var hasPermission = await permissionService.HasPermissionAsync(
+                userId,
+                Role.Admin, // role parameter is now legacy - RBAC uses UserRole junction table
+                requirement.Module, // subsystem code
+                requirement.RequiredFlags,
+                CancellationToken.None
+            );
+
+            if (hasPermission)
             {
                 context.Succeed(requirement);
             }
         }
-
-        return Task.CompletedTask;
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Permission check error: {ex.Message}");
+            // Fail silently - will result in 403
+        }
     }
 }

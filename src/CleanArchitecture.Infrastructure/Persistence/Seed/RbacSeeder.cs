@@ -16,11 +16,21 @@ public static class RbacSeeder
         try
         {
             // Check if RBAC already seeded (idempotent)
-            if (await context.Subsystems.AnyAsync() && 
-                await context.Roles.AnyAsync() && 
-                await context.RoleSubsystemPermissions.AnyAsync())
+            // If migration hasn't been applied yet, skip seeding
+            try
             {
-                return;
+                if (await context.Subsystems.AnyAsync() && 
+                    await context.Roles.AnyAsync() && 
+                    await context.RoleSubsystemPermissions.AnyAsync())
+                {
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex.Message.Contains("does not exist") || ex.Message.Contains("relation"))
+            {
+                // Tables don't exist yet - migration hasn't been applied
+                System.Diagnostics.Debug.WriteLine($"RBAC tables not found. Please run: dotnet ef database update");
+                throw;
             }
 
             // 1. Seed Subsystems

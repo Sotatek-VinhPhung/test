@@ -1,52 +1,54 @@
 using CleanArchitecture.Domain.Enums;
 using CleanArchitecture.Domain.Exceptions;
-using CleanArchitecture.Domain.Interfaces;
+using CleanArchitecture.Application.Permissions.Interfaces;
 
 namespace CleanArchitecture.Application.Permissions;
 
+/// <summary>
+/// Updated to use new RBAC system (Subsystem-based) instead of legacy module-based approach.
+/// </summary>
 public class PermissionService : IPermissionService
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IRolePermissionRepository _rolePermissionRepository;
 
-    public PermissionService(IUnitOfWork unitOfWork)
+    public PermissionService(IRolePermissionRepository rolePermissionRepository)
     {
-        _unitOfWork = unitOfWork;
+        _rolePermissionRepository = rolePermissionRepository;
     }
 
+    /// <summary>
+    /// Check if user has required permission in a subsystem using new RBAC.
+    /// </summary>
     public async Task<bool> HasPermissionAsync(
-        Guid userId, CleanArchitecture.Domain.Enums.Role role, string module, long requiredFlags,
+        Guid userId, CleanArchitecture.Domain.Enums.Role role, string subsystemCode, long requiredFlags,
         CancellationToken ct = default)
     {
-        var effective = await _unitOfWork.Permissions
-            .GetEffectiveFlagsAsync(userId, role, module, ct);
+        // Get subsystem by code
+        var subsystem = await _rolePermissionRepository.GetSubsystemByCodeAsync(subsystemCode, ct);
+        if (subsystem == null)
+            return false;
 
-        return (effective & requiredFlags) == requiredFlags;
+        // Check if user has required permission in subsystem
+        return await _rolePermissionRepository.HasPermissionAsync(userId, subsystem.Id, requiredFlags, ct);
     }
 
+    /// <summary>
+    /// Get all effective permissions for user in all subsystems.
+    /// </summary>
     public async Task<Dictionary<string, long>> GetAllEffectiveAsync(
         Guid userId, CleanArchitecture.Domain.Enums.Role role, CancellationToken ct = default)
     {
-        var rolePerms = await _unitOfWork.Permissions.GetByRoleAsync(role, ct);
-        var userOverrides = await _unitOfWork.Permissions.GetByUserIdAsync(userId, ct);
-
-        var result = rolePerms.ToDictionary(rp => rp.Module, rp => rp.Flags);
-
-        foreach (var uo in userOverrides)
-        {
-            if (result.TryGetValue(uo.Module, out var existing))
-                result[uo.Module] = existing | uo.Flags;
-            else
-                result[uo.Module] = uo.Flags;
-        }
-
-        return result;
+        return await _rolePermissionRepository.GetAllEffectivePermissionsAsync(userId, ct);
     }
 
+    /// <summary>
+    /// Require user to have permission, throw if not.
+    /// </summary>
     public async Task RequirePermissionAsync(
-        Guid userId, Role role, string module, long requiredFlags,
+        Guid userId, Role role, string subsystemCode, long requiredFlags,
         CancellationToken ct = default)
     {
-        if (!await HasPermissionAsync(userId, role, module, requiredFlags, ct))
-            throw new ForbiddenException(module, requiredFlags);
+        if (!await HasPermissionAsync(userId, role, subsystemCode, requiredFlags, ct))
+            throw new ForbiddenException(subsystemCode, requiredFlags);
     }
 }

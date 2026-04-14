@@ -101,7 +101,7 @@ app.MapHub<PermissionNotificationHub>("/hubs/permissions");
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<CleanArchitecture.Infrastructure.Persistence.AppDbContext>();
-    //await dbContext.Database.MigrateAsync();
+    await dbContext.Database.MigrateAsync();
     await app.SeedRbacAsync();
 }
 

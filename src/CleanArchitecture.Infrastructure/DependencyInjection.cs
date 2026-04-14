@@ -36,6 +36,7 @@ public static class DependencyInjection
 #pragma warning restore CS0618 // Type or member is obsolete
         services.AddScoped<RoleRepository>();
         services.AddScoped<SubsystemRepository>();
+        services.AddScoped<IRolePermissionRepository, RolePermissionRepository>(); // New RBAC
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Permission services
