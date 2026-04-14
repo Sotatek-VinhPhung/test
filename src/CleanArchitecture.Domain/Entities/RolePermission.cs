@@ -8,7 +8,7 @@ namespace CleanArchitecture.Domain.Entities;
 /// </summary>
 public class RolePermission
 {
-    public Role Role { get; set; }
+    public Enums.Role Role { get; set; }
     public string Module { get; set; } = string.Empty;
     public long Flags { get; set; }
 }

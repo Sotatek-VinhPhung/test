@@ -7,5 +7,6 @@ namespace CleanArchitecture.Domain.Enums;
 public enum PermissionModule
 {
     Users,
-    Orders
+    Orders,
+    Settings  // For admin/configuration operations
 }

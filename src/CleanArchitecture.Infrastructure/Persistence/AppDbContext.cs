@@ -6,16 +6,29 @@ namespace CleanArchitecture.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext
 {
+    // User table (required)
     public DbSet<User> Users => Set<User>();
-    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-    public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
+
+    // New RBAC tables (replacing legacy module-based approach)
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<Subsystem> Subsystems => Set<Subsystem>();
+    public DbSet<RoleSubsystemPermission> RoleSubsystemPermissions => Set<RoleSubsystemPermission>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        try
+        {
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Configuration error: {ex.InnerException?.Message}");
+            throw;
+        }
     }
 
     /// <summary>

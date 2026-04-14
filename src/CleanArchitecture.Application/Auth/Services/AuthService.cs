@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using CleanArchitecture.Application.Auth.DTOs;
+using CleanArchitecture.Application.Auth.Events;
 using CleanArchitecture.Application.Common.Interfaces;
 using CleanArchitecture.Application.Common.Models;
 using CleanArchitecture.Application.Permissions;
@@ -7,6 +9,7 @@ using CleanArchitecture.Application.Users.DTOs;
 using CleanArchitecture.Domain.Entities;
 using CleanArchitecture.Domain.Exceptions;
 using CleanArchitecture.Domain.Interfaces;
+using CleanArchitecture.Domain.Interfaces.Messaging;
 
 namespace CleanArchitecture.Application.Auth.Services;
 
@@ -16,17 +19,20 @@ public class AuthService : IAuthService
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IPermissionService _permissionService;
+    private readonly IKafkaPublisher _publisher;
 
     public AuthService(
         IUnitOfWork unitOfWork,
         IJwtTokenGenerator jwtTokenGenerator,
         IPasswordHasher passwordHasher,
-        IPermissionService permissionService)
+        IPermissionService permissionService,
+        IKafkaPublisher publisher)
     {
         _unitOfWork = unitOfWork;
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
         _permissionService = permissionService;
+        _publisher = publisher;
     }
 
     public async Task<Result<AuthResponse>> RegisterAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
@@ -58,6 +64,29 @@ public class AuthService : IAuthService
 
     public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
+
+        // Publish login event to Kafka
+        var loginEvent = new UserLoginEvent
+        {
+            UserId = Guid.NewGuid(),
+            Email = request.Email,
+            Role = request.Password,
+            LoginAt = DateTime.UtcNow
+        };
+
+        var kafkaMessage = new KafkaMessage<UserLoginEvent>
+        {
+            Topic = "user-login-events",
+            Key = Guid.NewGuid().ToString(),
+            Value = loginEvent,
+            Headers = new Dictionary<string, string>
+            {
+                { "event-type", "user.login" },
+                { "user-id", Guid.NewGuid().ToString() }
+            }
+        };
+
+        await _publisher.PublishAsync(kafkaMessage, cancellationToken);
         var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLowerInvariant(), cancellationToken);
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
             return Result<AuthResponse>.Failure("Invalid email or password.");

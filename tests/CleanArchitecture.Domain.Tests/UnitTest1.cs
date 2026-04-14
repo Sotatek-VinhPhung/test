@@ -16,7 +16,7 @@ public class UserEntityTests
         user.FirstName.Should().BeEmpty();
         user.LastName.Should().BeEmpty();
         user.Email.Should().BeEmpty();
-        user.Role.Should().Be(Role.User);
+        user.Role.Should().Be(CleanArchitecture.Domain.Enums.Role.User);
         user.RefreshToken.Should().BeNull();
     }
 
@@ -31,14 +31,14 @@ public class UserEntityTests
             LastName = "Doe",
             Email = "john@example.com",
             PasswordHash = "hashed",
-            Role = Role.Admin
+            Role = CleanArchitecture.Domain.Enums.Role.Admin
         };
 
         user.Id.Should().Be(id);
         user.FirstName.Should().Be("John");
         user.LastName.Should().Be("Doe");
         user.Email.Should().Be("john@example.com");
-        user.Role.Should().Be(Role.Admin);
+        user.Role.Should().Be(CleanArchitecture.Domain.Enums.Role.Admin);
     }
 }
 

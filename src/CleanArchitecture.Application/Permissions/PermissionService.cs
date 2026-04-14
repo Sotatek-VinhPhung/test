@@ -14,7 +14,7 @@ public class PermissionService : IPermissionService
     }
 
     public async Task<bool> HasPermissionAsync(
-        Guid userId, Role role, string module, long requiredFlags,
+        Guid userId, CleanArchitecture.Domain.Enums.Role role, string module, long requiredFlags,
         CancellationToken ct = default)
     {
         var effective = await _unitOfWork.Permissions
@@ -24,7 +24,7 @@ public class PermissionService : IPermissionService
     }
 
     public async Task<Dictionary<string, long>> GetAllEffectiveAsync(
-        Guid userId, Role role, CancellationToken ct = default)
+        Guid userId, CleanArchitecture.Domain.Enums.Role role, CancellationToken ct = default)
     {
         var rolePerms = await _unitOfWork.Permissions.GetByRoleAsync(role, ct);
         var userOverrides = await _unitOfWork.Permissions.GetByUserIdAsync(userId, ct);

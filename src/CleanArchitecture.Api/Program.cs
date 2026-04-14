@@ -5,7 +5,10 @@ using CleanArchitecture.Infrastructure.Messaging;
 using CleanArchitecture.Api.Extensions;
 using CleanArchitecture.Api.Authorization;
 using CleanArchitecture.Api.Middleware;
+using CleanArchitecture.Api.Hubs;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
@@ -18,8 +21,28 @@ builder.Host.UseSerilog((context, configuration) =>
 // Layer DI registration
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
-builder.Services.AddKafkaServices(builder.Configuration);
+builder.Services.AddKafkaServices(builder.Configuration, typeof(CleanArchitecture.Application.Auth.Services.AuthService).Assembly);
 builder.Services.AddCacheServices(builder.Configuration);
+
+// SignalR
+builder.Services.AddSignalR();
+
+// Register factory for IHubContext that will be resolved after app.Build()
+builder.Services.AddScoped(sp =>
+{
+    // This will work after the app is built and hubs are available
+    try
+    {
+        var hubContextType = typeof(IHubContext<>).MakeGenericType(typeof(PermissionNotificationHub));
+        var hubContext = sp.GetService(hubContextType);
+        return (dynamic)(hubContext ?? new object());
+    }
+    catch
+    {
+        // Return a dummy object if hub context is not available yet
+        return (dynamic)new object();
+    }
+});
 
 // Permission authorization
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
@@ -71,8 +94,16 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Seed default role permissions (idempotent)
-await app.SeedPermissionsAsync();
+// Map SignalR hubs
+app.MapHub<PermissionNotificationHub>("/hubs/permissions");
+
+// Apply migrations and seed RBAC system data
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<CleanArchitecture.Infrastructure.Persistence.AppDbContext>();
+    //await dbContext.Database.MigrateAsync();
+    await app.SeedRbacAsync();
+}
 
 app.Run();
 

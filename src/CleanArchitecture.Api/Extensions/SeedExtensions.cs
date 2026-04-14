@@ -6,10 +6,14 @@ namespace CleanArchitecture.Api.Extensions;
 
 public static class SeedExtensions
 {
-    public static async Task SeedPermissionsAsync(this WebApplication app)
+    /// <summary>
+    /// Seed RBAC system data (Subsystems, Roles, RoleSubsystemPermissions).
+    /// Uses new Subsystem-based RBAC (replacing legacy module-based approach).
+    /// </summary>
+    public static async Task SeedRbacAsync(this WebApplication app)
     {
         using var scope = app.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await PermissionSeeder.SeedAsync(context);
+        await RbacSeeder.SeedAsync(context);
     }
 }

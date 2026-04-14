@@ -105,7 +105,7 @@ public class UserMappingsTests
             LastName = "Doe",
             Email = "john@test.com",
             PasswordHash = "hash",
-            Role = Role.Admin
+            Role = CleanArchitecture.Domain.Enums.Role.Admin
         };
 
         var dto = user.ToDto();
