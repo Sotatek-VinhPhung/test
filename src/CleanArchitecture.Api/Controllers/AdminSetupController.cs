@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using CleanArchitecture.Application.Permissions.Interfaces;
 using CleanArchitecture.Domain.Entities;
 using CleanArchitecture.Domain.Enums;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Infrastructure.Persistence.Repositories;
+using CleanArchitecture.Api.Authorization;
 
 namespace CleanArchitecture.Api.Controllers;
 
@@ -54,7 +56,7 @@ public class AdminSetupController : ControllerBase
         try
         {
             // 1. Check if role already exists
-            var existingRole = await _roleRepository.GetByCodeAsync(request.RoleCode, cancellationToken);
+            var existingRole = await _roleRepository.GetByCodeAsync(request.RoleCode);
             Guid roleId;
 
             if (existingRole != null)
@@ -129,7 +131,7 @@ public class AdminSetupController : ControllerBase
         try
         {
             // Get role by code
-            var role = await _roleRepository.GetByCodeAsync(request.RoleCode, cancellationToken);
+            var role = await _roleRepository.GetByCodeAsync(request.RoleCode);
             if (role == null)
                 return NotFound($"Role '{request.RoleCode}' not found");
 
@@ -228,7 +230,7 @@ public class AdminSetupController : ControllerBase
         return Ok(new
         {
             userId = userId,
-            userName = user.Name,
+            userName = $"{user.FirstName} {user.LastName}",
             email = user.Email,
             userRoles = user.UserRoles
                 .Where(ur => ur.IsActive())

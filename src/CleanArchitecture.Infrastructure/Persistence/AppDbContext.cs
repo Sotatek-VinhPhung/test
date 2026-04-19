@@ -15,6 +15,9 @@ public class AppDbContext : DbContext
     public DbSet<Subsystem> Subsystems => Set<Subsystem>();
     public DbSet<RoleSubsystemPermission> RoleSubsystemPermissions => Set<RoleSubsystemPermission>();
 
+    // Export feature
+    public DbSet<ExportedFile> ExportedFiles => Set<ExportedFile>();
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

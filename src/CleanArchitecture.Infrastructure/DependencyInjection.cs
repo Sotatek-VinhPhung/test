@@ -4,18 +4,24 @@ using CleanArchitecture.Application.Permissions.Interfaces;
 using CleanArchitecture.Application.Permissions.Services;
 using CleanArchitecture.Application.Permissions.Helpers;
 using CleanArchitecture.Application.Notifications.Interfaces;
+using CleanArchitecture.Application.Export.Interfaces;
+using CleanArchitecture.Application.Export.Services;
 using CleanArchitecture.Domain.Interfaces;
+using CleanArchitecture.Domain.Interfaces.Export;
 using CleanArchitecture.Infrastructure.Auth;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Infrastructure.Persistence.Services;
 using CleanArchitecture.Infrastructure.Persistence.Repositories;
 using CleanArchitecture.Infrastructure.Permissions;
 using CleanArchitecture.Infrastructure.Notifications;
+using CleanArchitecture.Infrastructure.FileStorage;
+using CleanArchitecture.Infrastructure.FileGeneration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Minio;
 
 namespace CleanArchitecture.Infrastructure;
 
@@ -46,6 +52,52 @@ public static class DependencyInjection
 
         // Notification services
         services.AddScoped<IPermissionNotificationService, PermissionNotificationService>();
+
+        // Export feature - Repositories
+        services.AddScoped<IExportedFileRepository, ExportedFileRepository>();
+
+        // Export feature - File generation services
+        services.AddScoped<IExcelFileGenerator, ExcelFileGenerator>();
+        services.AddScoped<IWordFileGenerator, WordFileGenerator>();
+        services.AddScoped<IPdfFileGenerator, PdfFileGenerator>();
+
+        // Export feature - File storage service (MinIO)
+        var minioSettings = configuration.GetSection("MinIO");
+        var minioEndpoint = minioSettings.GetValue<string>("Endpoint") ?? "localhost:9000";
+        var minioAccessKey = minioSettings.GetValue<string>("AccessKey") ?? "minioadmin";
+        var minioSecretKey = minioSettings.GetValue<string>("SecretKey") ?? "minioadmin";
+        var minioBucket = minioSettings.GetValue<string>("Bucket") ?? "exports";
+
+        services.AddScoped<IMinioClient>(sp =>
+        {
+            var minioClient = new MinioClient()
+                .WithEndpoint(minioEndpoint)
+                .WithCredentials(minioAccessKey, minioSecretKey)
+                .Build();
+            return minioClient;
+        });
+
+        services.AddScoped<IFileStorageService>(sp =>
+        {
+            var minioClient = sp.GetRequiredService<IMinioClient>();
+            var baseUrl = minioSettings.GetValue<string>("BaseUrl") ?? $"http://{minioEndpoint}";
+            return new MinIOFileStorageService(minioClient, baseUrl);
+        });
+
+        // Export feature - Export service
+        services.AddScoped(sp =>
+        {
+            var repository = sp.GetRequiredService<IExportedFileRepository>();
+            var storage = sp.GetRequiredService<IFileStorageService>();
+            var excel = sp.GetRequiredService<IExcelFileGenerator>();
+            var word = sp.GetRequiredService<IWordFileGenerator>();
+            var pdf = sp.GetRequiredService<IPdfFileGenerator>();
+            var currentUserService = sp.GetRequiredService<ICurrentUserService>();
+
+            return new ExportService(repository, storage, excel, word, pdf, currentUserService, minioBucket);
+        });
+
+        services.AddScoped<IExportService>(sp => sp.GetRequiredService<ExportService>());
 
         // Auth
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()!;
