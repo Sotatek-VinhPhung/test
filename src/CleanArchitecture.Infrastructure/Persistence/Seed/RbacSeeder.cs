@@ -42,6 +42,9 @@ public static class RbacSeeder
             // 3. Seed RoleSubsystemPermissions
             await SeedRoleSubsystemPermissionsAsync(context);
 
+            // 4. NEW: Seed Organizational Hierarchy
+            await SeedOrganizationalHierarchyAsync(context);
+
             await context.SaveChangesAsync();
         }
         catch (Exception ex)
@@ -344,5 +347,142 @@ public static class RbacSeeder
         };
 
         await context.RoleSubsystemPermissions.AddRangeAsync(permissions);
+    }
+
+    private static async Task SeedOrganizationalHierarchyAsync(AppDbContext context)
+    {
+        // Check if already seeded
+        if (await context.Regions.AnyAsync())
+            return;
+
+        // 1. Seed Regions
+        var regions = new List<Region>
+        {
+            new()
+            {
+                Id = Guid.Parse("20000000-0000-0000-0000-000000000001"),
+                Code = "VN-HN",
+                Name = "Hanoi",
+                Country = "Vietnam",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Id = Guid.Parse("20000000-0000-0000-0000-000000000002"),
+                Code = "VN-HCM",
+                Name = "Ho Chi Minh City",
+                Country = "Vietnam",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Id = Guid.Parse("20000000-0000-0000-0000-000000000003"),
+                Code = "SG",
+                Name = "Singapore",
+                Country = "Singapore",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        await context.Regions.AddRangeAsync(regions);
+        await context.SaveChangesAsync();
+
+        // 2. Seed Companies
+        var companies = new List<Company>
+        {
+            new()
+            {
+                Id = Guid.Parse("30000000-0000-0000-0000-000000000001"),
+                Code = "ABC-CORP",
+                Name = "ABC Corporation",
+                TaxId = "0123456789",
+                RegionId = Guid.Parse("20000000-0000-0000-0000-000000000001"), // Hanoi
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Id = Guid.Parse("30000000-0000-0000-0000-000000000002"),
+                Code = "XYZ-TECH",
+                Name = "XYZ Technology",
+                TaxId = "9876543210",
+                RegionId = Guid.Parse("20000000-0000-0000-0000-000000000002"), // HCM
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        await context.Companies.AddRangeAsync(companies);
+        await context.SaveChangesAsync();
+
+        // 3. Seed Departments
+        var departments = new List<Department>
+        {
+            new()
+            {
+                Id = Guid.Parse("40000000-0000-0000-0000-000000000001"),
+                Code = "ACC-ACCOUNTING",
+                Name = "Accounting Department",
+                CompanyId = Guid.Parse("30000000-0000-0000-0000-000000000001"), // ABC-CORP
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Id = Guid.Parse("40000000-0000-0000-0000-000000000002"),
+                Code = "HR-HR",
+                Name = "Human Resources",
+                CompanyId = Guid.Parse("30000000-0000-0000-0000-000000000001"), // ABC-CORP
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new()
+            {
+                Id = Guid.Parse("40000000-0000-0000-0000-000000000003"),
+                Code = "IT-SUPPORT",
+                Name = "IT Support",
+                CompanyId = Guid.Parse("30000000-0000-0000-0000-000000000002"), // XYZ-TECH
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        await context.Departments.AddRangeAsync(departments);
+        await context.SaveChangesAsync();
+
+        // 4. Seed RoleOrganizationScopes (Assign roles to scopes)
+        var managerId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+        var editorId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+
+        var scopes = new List<RoleOrganizationScope>
+        {
+            // Manager - restricted to ABC-Corp / Hanoi
+            new()
+            {
+                Id = Guid.NewGuid(),
+                RoleId = managerId,
+                RegionId = Guid.Parse("20000000-0000-0000-0000-000000000001"), // Hanoi
+                CompanyId = Guid.Parse("30000000-0000-0000-0000-000000000001"), // ABC-CORP
+                DepartmentId = null, // All departments in this company
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            // Editor - restricted to Accounting department
+            new()
+            {
+                Id = Guid.NewGuid(),
+                RoleId = editorId,
+                RegionId = Guid.Parse("20000000-0000-0000-0000-000000000001"), // Hanoi
+                CompanyId = Guid.Parse("30000000-0000-0000-0000-000000000001"), // ABC-CORP
+                DepartmentId = Guid.Parse("40000000-0000-0000-0000-000000000001"), // Accounting
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        await context.RoleOrganizationScopes.AddRangeAsync(scopes);
     }
 }

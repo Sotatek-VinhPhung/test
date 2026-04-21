@@ -25,13 +25,8 @@ public class Role : BaseEntity
     /// </summary>
     public string? Description { get; set; }
 
-    /// <summary>
-    /// Indicates if this role is active/available for assignment.
-    /// </summary>
-    public bool IsActive { get; set; } = true;
-    
     // Navigation properties
-    
+
     /// <summary>
     /// Users who have been assigned this role.
     /// </summary>
@@ -41,6 +36,13 @@ public class Role : BaseEntity
     /// Permissions this role has on various subsystems.
     /// </summary>
     public ICollection<RoleSubsystemPermission> RoleSubsystemPermissions { get; set; } = [];
+
+    /// <summary>
+    /// Organization scopes this role is restricted to (ABAC - Attribute-Based Access Control).
+    /// If empty or null: role has global (unrestricted) access.
+    /// If populated: role is restricted to specified regions/companies/departments.
+    /// </summary>
+    public ICollection<RoleOrganizationScope> OrganizationScopes { get; set; } = [];
     
     /// <summary>
     /// Well-known role codes for common scenarios.

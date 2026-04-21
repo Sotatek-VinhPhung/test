@@ -33,4 +33,8 @@ public interface IExportService
     /// Delete export file.
     /// </summary>
     Task DeleteExportFileAsync(Guid exportId, CancellationToken cancellationToken = default);
+    Task<ExportFileResponse> GeneratePreviewPdfAsync(
+    PreviewPdfRequest request,
+    Guid userId,
+    CancellationToken cancellationToken = default);
 }

@@ -22,10 +22,25 @@ public class User : BaseEntity
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
 
+    // Organizational hierarchy properties
+    public Guid? RegionId { get; set; } // Người dùng thuộc khu vực nào
+    public Guid? CompanyId { get; set; } // Người dùng thuộc công ty nào
+    public Guid? DepartmentId { get; set; } // Người dùng thuộc phòng ban nào
+
     // Navigation properties
 
     /// <summary>
     /// Roles assigned to this user via the UserRole junction table.
     /// </summary>
     public ICollection<UserRole> UserRoles { get; set; } = [];
+
+    // Organizational navigation properties
+    public Region? Region { get; set; }
+    public Company? Company { get; set; }
+    public Department? Department { get; set; }
+
+    /// <summary>
+    /// Computed property: Full name of user
+    /// </summary>
+    public string Name => $"{FirstName} {LastName}".Trim();
 }

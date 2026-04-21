@@ -20,11 +20,11 @@ public class MinIOFileStorageService : IFileStorageService
     }
 
     public async Task<string> UploadFileAsync(
-        string bucketName,
-        string objectName,
-        Stream fileStream,
-        string contentType,
-        CancellationToken cancellationToken = default)
+    string bucketName,
+    string objectName,
+    Stream fileStream,
+    string contentType,
+    CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(bucketName);
         ArgumentException.ThrowIfNullOrEmpty(objectName);
@@ -32,55 +32,24 @@ public class MinIOFileStorageService : IFileStorageService
 
         try
         {
-            // Reset stream position
             fileStream.Position = 0;
 
-            // Save stream to temporary file
-            var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
-            try
-            {
-                using (var fileHandle = File.Create(tempPath))
-                {
-                    await fileStream.CopyToAsync(fileHandle, cancellationToken);
-                }
-
-                // Get file info
-                var fileInfo = new FileInfo(tempPath);
-
-                // Upload file using PutObjectAsync with file path
-                using (var uploadStream = File.OpenRead(tempPath))
-                {
-                    var putObjectArgs = new PutObjectArgs()
-                        .WithBucket(bucketName)
-                        .WithObject(objectName)
-                        .WithObjectSize(fileInfo.Length)
-                        .WithContentType(contentType);
-
-                    // Try alternative method: using direct stream
-                    await _minioClient.PutObjectAsync(putObjectArgs, cancellationToken);
-                }
-
-                // Return presigned URL (valid for 7 days)
-                var presignedGetObjectArgs = new PresignedGetObjectArgs()
+            await _minioClient.PutObjectAsync(
+                new PutObjectArgs()
                     .WithBucket(bucketName)
                     .WithObject(objectName)
-                    .WithExpiry(7 * 24 * 60 * 60);
+                    .WithStreamData(fileStream)
+                    .WithObjectSize(fileStream.Length)
+                    .WithContentType(contentType),
+                cancellationToken
+            );
 
-                var presignedUrl = await _minioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
-                return presignedUrl;
-            }
-            finally
-            {
-                // Clean up temp file
-                if (File.Exists(tempPath))
-                {
-                    try
-                    {
-                        File.Delete(tempPath);
-                    }
-                    catch { /* Ignore cleanup errors */ }
-                }
-            }
+            return await _minioClient.PresignedGetObjectAsync(
+                new PresignedGetObjectArgs()
+                    .WithBucket(bucketName)
+                    .WithObject(objectName)
+                    .WithExpiry(7 * 24 * 60 * 60)
+            );
         }
         catch (Exception ex)
         {
@@ -159,4 +128,18 @@ public class MinIOFileStorageService : IFileStorageService
             throw new InvalidOperationException($"Failed to get file size from MinIO: {ex.Message}", ex);
         }
     }
+
+    public async Task<string> GetPresignedUrlAsync(
+        string bucket,
+        string objectName,
+        int expiresInSeconds = 3600,
+        CancellationToken cancellationToken = default)
+        {
+            var args = new Minio.DataModel.Args.PresignedGetObjectArgs()
+                .WithBucket(bucket)
+                .WithObject(objectName)
+                .WithExpiry(expiresInSeconds);
+
+            return await _minioClient.PresignedGetObjectAsync(args);
+        }
 }

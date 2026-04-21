@@ -1,3 +1,5 @@
+// CleanArchitecture.Application/Export/Services/ExportService.cs
+
 using CleanArchitecture.Application.Common.Interfaces;
 using CleanArchitecture.Application.Export.DTOs;
 using CleanArchitecture.Application.Export.Interfaces;
@@ -6,10 +8,6 @@ using CleanArchitecture.Domain.Interfaces.Export;
 
 namespace CleanArchitecture.Application.Export.Services;
 
-/// <summary>
-/// Service for orchestrating data export to files and storage.
-/// Implements Clean Architecture principles with dependency injection.
-/// </summary>
 public class ExportService : IExportService
 {
     private readonly IExportedFileRepository _exportedFileRepository;
@@ -18,6 +16,11 @@ public class ExportService : IExportService
     private readonly IWordFileGenerator _wordGenerator;
     private readonly IPdfFileGenerator _pdfGenerator;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IExcelTemplateEngine _excelTemplateEngine;
+    private readonly IWordTemplateEngine _wordTemplateEngine; // 🔥 THÊM
+    private readonly IGotenbergService _gotenbergService;
+
+    private readonly string _templateBasePath;
     private readonly string _minIOBucket;
 
     public ExportService(
@@ -27,6 +30,10 @@ public class ExportService : IExportService
         IWordFileGenerator wordGenerator,
         IPdfFileGenerator pdfGenerator,
         ICurrentUserService currentUserService,
+        IExcelTemplateEngine excelTemplateEngine,
+        IWordTemplateEngine wordTemplateEngine, // 🔥 THÊM
+        IGotenbergService gotenbergService,
+        string templateBasePath = "Templates",
         string minIOBucket = "exports")
     {
         _exportedFileRepository = exportedFileRepository;
@@ -35,7 +42,11 @@ public class ExportService : IExportService
         _wordGenerator = wordGenerator;
         _pdfGenerator = pdfGenerator;
         _currentUserService = currentUserService;
+        _excelTemplateEngine = excelTemplateEngine;
+        _wordTemplateEngine = wordTemplateEngine; // 🔥 THÊM
+        _templateBasePath = templateBasePath;
         _minIOBucket = minIOBucket;
+        _gotenbergService = gotenbergService;
     }
 
     public async Task<ExportFileResponse> ExportDataAsync(
@@ -43,18 +54,14 @@ public class ExportService : IExportService
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        // Ensure bucket exists
         await _fileStorageService.EnsureBucketExistsAsync(_minIOBucket, cancellationToken);
 
-        // Generate file based on format
         var (fileStream, contentType, fileExtension) = await GenerateFileAsync(request, cancellationToken);
 
         try
         {
-            // Generate unique object name
             var objectName = GenerateObjectName(request.FileName, fileExtension);
 
-            // Upload to MinIO
             var fileUrl = await _fileStorageService.UploadFileAsync(
                 _minIOBucket,
                 objectName,
@@ -62,13 +69,11 @@ public class ExportService : IExportService
                 contentType,
                 cancellationToken);
 
-            // Get file size
             var fileSize = await _fileStorageService.GetFileSizeAsync(
                 _minIOBucket,
                 objectName,
                 cancellationToken);
 
-            // Create database record
             var exportedFile = new ExportedFile
             {
                 Id = Guid.NewGuid(),
@@ -84,7 +89,6 @@ public class ExportService : IExportService
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Save to database
             await _exportedFileRepository.AddAsync(exportedFile, cancellationToken);
             await _exportedFileRepository.SaveChangesAsync(cancellationToken);
 
@@ -96,6 +100,77 @@ public class ExportService : IExportService
         }
     }
 
+    private async Task<(Stream, string, string)> GenerateFileAsync(
+        ExportDataRequest request,
+        CancellationToken cancellationToken)
+    {
+        return request.Format switch
+        {
+            // 🔥 Excel từ template
+            ExportFormat.Excel =>
+            (
+                GenerateExcelFromTemplate(request),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ".xlsx"
+            ),
+
+            // 🔥 Word từ template (MiniWord) hoặc fallback generator cũ
+            ExportFormat.Word =>
+            (
+                GenerateWordFromTemplate(request),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".docx"
+            ),
+
+            ExportFormat.PDF =>
+                (await _pdfGenerator.GenerateFromHtmlAsync(
+                    request.FileName,
+                    FormatDataAsHtml(request.Data),
+                    cancellationToken),
+                "application/pdf",
+                ".pdf"),
+
+            _ => throw new InvalidOperationException($"Unsupported export format: {request.Format}")
+        };
+    }
+
+    // =============================
+    // 🔥 EXCEL từ template
+    private Stream GenerateExcelFromTemplate(ExportDataRequest request)
+    {
+        var templatePath = Path.Combine(
+            _templateBasePath, "Excel", $"{request.TemplateName}.xlsx");
+
+        if (!File.Exists(templatePath))
+            throw new FileNotFoundException($"Excel template not found: {templatePath}");
+
+        return _excelTemplateEngine.FillTemplate(
+            templatePath,
+            request.RawData,
+            request.SheetName);
+    }
+
+    // =============================
+    // 🔥 WORD từ template (MiniWord)
+    private Stream GenerateWordFromTemplate(ExportDataRequest request)
+    {
+        // Nếu có WordTemplateName → dùng MiniWord template engine
+        if (!string.IsNullOrWhiteSpace(request.WordTemplateName))
+        {
+            var templatePath = Path.Combine(
+                _templateBasePath, "Word", $"{request.WordTemplateName}.docx");
+
+            return _wordTemplateEngine.FillTemplate(templatePath, request.RawData);
+        }
+
+        // Fallback: dùng generator cũ nếu không có template
+        throw new ArgumentException(
+            "WordTemplateName is required for Word export. " +
+            "Please provide a template name.");
+    }
+
+    // =============================
+    // Các method còn lại giữ nguyên
     public async Task<ExportFileResponse?> GetExportFileAsync(
         Guid exportId,
         CancellationToken cancellationToken = default)
@@ -120,89 +195,43 @@ public class ExportService : IExportService
         if (exportedFile == null)
             throw new KeyNotFoundException($"Export file with id {exportId} not found.");
 
-        // Delete from MinIO
         await _fileStorageService.DeleteFileAsync(
             exportedFile.Bucket,
             exportedFile.ObjectName,
             cancellationToken);
 
-        // Delete from database
         await _exportedFileRepository.DeleteAsync(exportId, cancellationToken);
         await _exportedFileRepository.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<(Stream, string, string)> GenerateFileAsync(
-        ExportDataRequest request,
-        CancellationToken cancellationToken)
-    {
-        return request.Format switch
-        {
-            ExportFormat.Excel => 
-                (await _excelGenerator.GenerateAsync(request.FileName, ConvertToObjects(request.Data), cancellationToken: cancellationToken), 
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                ".xlsx"),
-
-            ExportFormat.Word => 
-                (await _wordGenerator.GenerateAsync(request.FileName, request.FileName, FormatDataAsHtml(request.Data), cancellationToken), 
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
-                ".docx"),
-
-            ExportFormat.PDF => 
-                (await _pdfGenerator.GenerateFromHtmlAsync(request.FileName, FormatDataAsHtml(request.Data), cancellationToken), 
-                "application/pdf", 
-                ".pdf"),
-
-            _ => throw new InvalidOperationException($"Unsupported export format: {request.Format}")
-        };
-    }
-
-    private IEnumerable<dynamic> ConvertToObjects(IEnumerable<Dictionary<string, object?>>? data)
-    {
-        if (data == null)
-            return Enumerable.Empty<dynamic>();
-
-        return data.Select(d => (dynamic)d).ToList();
-    }
-
     private string FormatDataAsHtml(IEnumerable<Dictionary<string, object?>>? data)
     {
-        if (data == null || !data.Any())
-            return "<p>No data to display</p>";
+        if (data == null || !data.Any()) return "<p>No data</p>";
 
         var html = new System.Text.StringBuilder();
-        html.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
-
-        // Header row
-        var firstRow = data.First();
-        html.AppendLine("<thead><tr>");
-        foreach (var key in firstRow.Keys)
-        {
-            html.AppendLine($"<th>{System.Net.WebUtility.HtmlEncode(key.ToString())}</th>");
-        }
-        html.AppendLine("</tr></thead>");
-
-        // Data rows
-        html.AppendLine("<tbody>");
+        html.AppendLine("<table border='1'>");
+        var first = data.First();
+        html.AppendLine("<tr>");
+        foreach (var key in first.Keys)
+            html.AppendLine($"<th>{key}</th>");
+        html.AppendLine("</tr>");
         foreach (var row in data)
         {
             html.AppendLine("<tr>");
-            foreach (var value in row.Values)
-            {
-                html.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(value?.ToString() ?? "")}</td>");
-            }
+            foreach (var val in row.Values)
+                html.AppendLine($"<td>{val}</td>");
             html.AppendLine("</tr>");
         }
-        html.AppendLine("</tbody>");
         html.AppendLine("</table>");
-
         return html.ToString();
     }
 
     private string GenerateObjectName(string fileName, string extension)
     {
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var sanitizedName = System.Text.RegularExpressions.Regex.Replace(fileName, @"[^a-zA-Z0-9._-]", "_");
-        return $"{sanitizedName}_{timestamp}{extension}";
+        var sanitized = System.Text.RegularExpressions.Regex
+            .Replace(fileName, @"[^a-zA-Z0-9._-]", "_");
+        return $"{sanitized}_{timestamp}{extension}";
     }
 
     private ExportFileResponse MapToResponse(ExportedFile exportedFile)
@@ -219,4 +248,118 @@ public class ExportService : IExportService
             Bucket = exportedFile.Bucket
         };
     }
+
+    public async Task<ExportFileResponse> GeneratePreviewPdfAsync(
+    PreviewPdfRequest request,
+    Guid userId,
+    CancellationToken cancellationToken = default)
+    {
+        if (request.SourceFormat == PreviewSourceFormat.Word
+            && string.IsNullOrWhiteSpace(request.WordTemplateName))
+            throw new ArgumentException("WordTemplateName is required");
+
+        if (request.SourceFormat == PreviewSourceFormat.Excel
+            && string.IsNullOrWhiteSpace(request.ExcelTemplateName))
+            throw new ArgumentException("ExcelTemplateName is required");
+
+        await _fileStorageService.EnsureBucketExistsAsync(_minIOBucket, cancellationToken);
+
+        // Fill template → Word/Excel stream
+        Stream sourceStream;
+        string sourceFileName;
+
+        if (request.SourceFormat == PreviewSourceFormat.Word)
+        {
+            var templatePath = Path.Combine(
+                _templateBasePath, "Word", $"{request.WordTemplateName}.docx");
+            if (!File.Exists(templatePath))
+                throw new FileNotFoundException($"Word template not found: {templatePath}");
+
+            sourceStream = _wordTemplateEngine.FillTemplate(templatePath, request.RawData);
+            sourceFileName = $"{request.FileName}.docx";
+        }
+        else
+        {
+            var templatePath = Path.Combine(
+                _templateBasePath, "Excel", $"{request.ExcelTemplateName}.xlsx");
+            if (!File.Exists(templatePath))
+                throw new FileNotFoundException($"Excel template not found: {templatePath}");
+
+            sourceStream = _excelTemplateEngine.FillTemplate(
+                templatePath, request.RawData, request.SheetName);
+            sourceFileName = $"{request.FileName}.xlsx";
+        }
+
+        // Convert sang PDF
+        Stream pdfStream;
+        try
+        {
+            if (sourceStream.CanSeek) sourceStream.Position = 0;
+            pdfStream = await _gotenbergService.ConvertOfficeToPdfAsync(
+                sourceStream, sourceFileName, cancellationToken);
+        }
+        finally
+        {
+            sourceStream.Dispose();
+        }
+
+        // Upload MinIO
+        try
+        {
+            var objectName = GenerateObjectName(request.FileName, ".pdf");
+
+            var fileUrl = await _fileStorageService.UploadFileAsync(
+                _minIOBucket, objectName, pdfStream,
+                "application/pdf", cancellationToken);
+
+            var fileSize = await _fileStorageService.GetFileSizeAsync(
+                _minIOBucket, objectName, cancellationToken);
+
+            // Presigned URL 1 giờ để UI truy cập được
+            var previewUrl = await _fileStorageService.GetPresignedUrlAsync(
+                _minIOBucket, objectName, 3600, cancellationToken);
+
+            if (request.SaveToHistory)
+            {
+                var exportedFile = new ExportedFile
+                {
+                    Id = Guid.NewGuid(),
+                    FileName = $"{request.FileName}.pdf",
+                    Url = fileUrl,
+                    Bucket = _minIOBucket,
+                    Size = fileSize,
+                    FileType = "PDF",
+                    ObjectName = objectName,
+                    UserId = userId,
+                    Note = request.Note ?? "Preview PDF",
+                    ExpiresAt = request.ExpiresAt,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _exportedFileRepository.AddAsync(exportedFile, cancellationToken);
+                await _exportedFileRepository.SaveChangesAsync(cancellationToken);
+
+                var mapped = MapToResponse(exportedFile);
+                mapped.Url = previewUrl; // ưu tiên presigned URL cho UI
+                return mapped;
+            }
+
+            return new ExportFileResponse
+            {
+                Id = Guid.Empty,
+                FileName = $"{request.FileName}.pdf",
+                Url = previewUrl,
+                Size = fileSize,
+                FileType = "PDF",
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = request.ExpiresAt,
+                Bucket = _minIOBucket
+            };
+        }
+        finally
+        {
+            pdfStream?.Dispose();
+        }
+    }
+
 }

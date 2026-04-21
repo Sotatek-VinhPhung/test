@@ -14,9 +14,17 @@ public class AppDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Subsystem> Subsystems => Set<Subsystem>();
     public DbSet<RoleSubsystemPermission> RoleSubsystemPermissions => Set<RoleSubsystemPermission>();
+    public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
+
+    // Organizational Hierarchy tables (for hierarchical RBAC)
+    public DbSet<Region> Regions => Set<Region>();
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<RoleOrganizationScope> RoleOrganizationScopes => Set<RoleOrganizationScope>();
 
     // Export feature
     public DbSet<ExportedFile> ExportedFiles => Set<ExportedFile>();
+    public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 

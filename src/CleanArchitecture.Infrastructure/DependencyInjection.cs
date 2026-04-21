@@ -44,11 +44,13 @@ public static class DependencyInjection
         services.AddScoped<SubsystemRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>(); // New RBAC
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-
+        services.AddSingleton<IExcelTemplateEngine, ExcelTemplateEngine>();
+        services.AddSingleton<IWordTemplateEngine, WordTemplateEngine>();
         // Permission services
         services.AddScoped<IUserContextService, UserContextServiceImpl>();
         services.AddScoped<PermissionChecker>();
         services.AddScoped<IRoleManagementService, RoleManagementService>();
+        services.AddScoped<IHierarchicalPermissionService, HierarchicalPermissionService>();
 
         // Notification services
         services.AddScoped<IPermissionNotificationService, PermissionNotificationService>();
@@ -61,13 +63,26 @@ public static class DependencyInjection
         services.AddScoped<IWordFileGenerator, WordFileGenerator>();
         services.AddScoped<IPdfFileGenerator, PdfFileGenerator>();
 
+        // Gotenberg
+        services.Configure<GotenbergSettings>(
+            configuration.GetSection(GotenbergSettings.SectionName));
+        var gotenbergSettings = configuration
+        .GetSection(GotenbergSettings.SectionName)
+        .Get<GotenbergSettings>() ?? new GotenbergSettings();
+
+        services.AddHttpClient<IGotenbergService, GotenbergService>(client =>
+        {
+            var baseUrl = gotenbergSettings.BaseUrl.TrimEnd('/') + "/";
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(gotenbergSettings.TimeoutSeconds);
+        });
+
         // Export feature - File storage service (MinIO)
         var minioSettings = configuration.GetSection("MinIO");
         var minioEndpoint = minioSettings.GetValue<string>("Endpoint") ?? "localhost:9000";
         var minioAccessKey = minioSettings.GetValue<string>("AccessKey") ?? "minioadmin";
         var minioSecretKey = minioSettings.GetValue<string>("SecretKey") ?? "minioadmin";
         var minioBucket = minioSettings.GetValue<string>("Bucket") ?? "exports";
-
         services.AddScoped<IMinioClient>(sp =>
         {
             var minioClient = new MinioClient()
@@ -93,8 +108,10 @@ public static class DependencyInjection
             var word = sp.GetRequiredService<IWordFileGenerator>();
             var pdf = sp.GetRequiredService<IPdfFileGenerator>();
             var currentUserService = sp.GetRequiredService<ICurrentUserService>();
-
-            return new ExportService(repository, storage, excel, word, pdf, currentUserService, minioBucket);
+            var templateEngine = sp.GetRequiredService<IExcelTemplateEngine>();
+            var wordTemplateEngine = sp.GetRequiredService<IWordTemplateEngine>();
+            var gotenbergService = sp.GetRequiredService<IGotenbergService>();
+            return new ExportService(repository, storage, excel, word, pdf, currentUserService, templateEngine, wordTemplateEngine, gotenbergService, "Templates", minioBucket);
         });
 
         services.AddScoped<IExportService>(sp => sp.GetRequiredService<ExportService>());

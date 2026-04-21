@@ -8,27 +8,35 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
 {
     public void Configure(EntityTypeBuilder<Role> builder)
     {
+        builder.ToTable("roles");
         builder.HasKey(r => r.Id);
-        
+
+        builder.Property(r => r.Id).HasColumnName("Id");
         builder.Property(r => r.Code)
+            .HasColumnName("Code")
             .IsRequired()
             .HasMaxLength(50);
-        
+
         builder.Property(r => r.Name)
+            .HasColumnName("Name")
             .IsRequired()
             .HasMaxLength(100);
-        
+
         builder.Property(r => r.Description)
+            .HasColumnName("Description")
             .HasMaxLength(500);
-        
+
         builder.Property(r => r.IsActive)
+            .HasColumnName("IsActive")
             .HasDefaultValue(true);
-        
+
         builder.Property(r => r.CreatedAt)
+            .HasColumnName("CreatedAt")
             .ValueGeneratedOnAdd()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
-        
+
         builder.Property(r => r.UpdatedAt)
+            .HasColumnName("UpdatedAt")
             .ValueGeneratedOnAddOrUpdate()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
         

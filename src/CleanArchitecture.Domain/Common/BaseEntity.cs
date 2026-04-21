@@ -9,4 +9,10 @@ public abstract class BaseEntity
     public Guid Id { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Soft delete flag. Entities with IsActive = false sẽ được filtered trong queries.
+    /// Mặc định = true (active).
+    /// </summary>
+    public bool IsActive { get; set; } = true;
 }

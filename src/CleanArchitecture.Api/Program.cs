@@ -97,12 +97,29 @@ app.MapControllers();
 // Map SignalR hubs
 app.MapHub<PermissionNotificationHub>("/hubs/permissions");
 
-// Apply migrations and seed RBAC system data
+// ⚠️ DATABASE SCHEMA: Run SQL from database/create_rbac_schema.sql in DBeaver
+// Migration system disabled - use raw SQL instead for reliability
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<CleanArchitecture.Infrastructure.Persistence.AppDbContext>();
-    await dbContext.Database.MigrateAsync();
-    await app.SeedRbacAsync();
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<CleanArchitecture.Infrastructure.Persistence.AppDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+        // Test connection only (don't run migrations)
+        logger.LogInformation("Testing database connection...");
+        await dbContext.Database.CanConnectAsync();
+        logger.LogInformation("✅ Database connection successful");
+
+        logger.LogWarning("📝 NOTE: Run database/create_rbac_schema.sql in DBeaver to create schema");
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Database connection failed: {Message}", ex.Message);
+        logger.LogError("❌ Please check PostgreSQL is running and database exists");
+        logger.LogError("📝 Run: database/create_rbac_schema.sql in DBeaver first");
+    }
 }
 
 app.Run();

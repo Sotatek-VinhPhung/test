@@ -25,20 +25,20 @@ public class UserRole
     /// Optional timestamp for when this role assignment expires.
     /// Null means the assignment doesn't expire.
     /// </summary>
-    public DateTime? ExpiresAt { get; set; }
+    //public DateTime? ExpiresAt { get; set; }
     
     // Navigation properties
     public User User { get; set; } = null!;
     public Role Role { get; set; } = null!;
-    
-    /// <summary>
-    /// Check if this role assignment is currently active.
-    /// </summary>
+
+    ///// <summary>
+    ///// Check if this role assignment is currently active.
+    ///// </summary>
     public bool IsActive()
     {
-        if (ExpiresAt.HasValue)
-            return DateTime.UtcNow <= ExpiresAt.Value;
-        
+        //if (ExpiresAt.HasValue)
+        //    return DateTime.UtcNow <= ExpiresAt.Value;
+
         return true;
     }
 }

@@ -23,12 +23,7 @@ public class Subsystem : BaseEntity
     /// Optional description of the subsystem's purpose.
     /// </summary>
     public string? Description { get; set; }
-    
-    /// <summary>
-    /// Indicates if this subsystem is active/enabled.
-    /// </summary>
-    public bool IsActive { get; set; } = true;
-    
+
     /// <summary>
     /// Navigation property for role permissions on this subsystem.
     /// </summary>

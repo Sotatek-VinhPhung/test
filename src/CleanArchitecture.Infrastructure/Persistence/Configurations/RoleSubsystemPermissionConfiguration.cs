@@ -8,16 +8,21 @@ public class RoleSubsystemPermissionConfiguration : IEntityTypeConfiguration<Rol
 {
     public void Configure(EntityTypeBuilder<RoleSubsystemPermission> builder)
     {
+        builder.ToTable("role_subsystem_permissions");
         // Composite primary key
         builder.HasKey(rsp => new { rsp.RoleId, rsp.SubsystemId });
-        
+
+        builder.Property(rsp => rsp.RoleId).HasColumnName("RoleId");
+        builder.Property(rsp => rsp.SubsystemId).HasColumnName("SubsystemId");
         builder.Property(rsp => rsp.Flags)
+            .HasColumnName("Flags")
             .HasDefaultValue(0L);
-        
+
         builder.Property(rsp => rsp.UpdatedAt)
+            .HasColumnName("UpdatedAt")
             .ValueGeneratedOnAdd()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
-        
+
         // Relationships
         builder.HasOne(rsp => rsp.Role)
             .WithMany(r => r.RoleSubsystemPermissions)

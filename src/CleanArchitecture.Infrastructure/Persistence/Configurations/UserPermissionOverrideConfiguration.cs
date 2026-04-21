@@ -8,15 +8,18 @@ public class UserPermissionOverrideConfiguration : IEntityTypeConfiguration<User
 {
     public void Configure(EntityTypeBuilder<UserPermissionOverride> builder)
     {
-        builder.ToTable("UserPermissionOverrides");
+        builder.ToTable("user_permission_overrides");
 
         builder.HasKey(up => new { up.UserId, up.Module });
 
+        builder.Property(up => up.UserId).HasColumnName("UserId");
         builder.Property(up => up.Module)
+            .HasColumnName("Module")
             .HasMaxLength(50)
             .IsRequired();
 
         builder.Property(up => up.Flags)
+            .HasColumnName("Flags")
             .IsRequired();
 
         builder.HasOne(up => up.User)

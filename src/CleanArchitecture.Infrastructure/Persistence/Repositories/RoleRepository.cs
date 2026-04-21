@@ -30,10 +30,10 @@ public class RoleRepository
     /// <summary>
     /// Get a role by code.
     /// </summary>
-    public async Task<Role?> GetByCodeAsync(string code)
+    public async Task<Role?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         return await _context.Roles
-            .FirstOrDefaultAsync(r => r.Code == code);
+            .FirstOrDefaultAsync(r => r.Code == code, cancellationToken);
     }
     
     /// <summary>

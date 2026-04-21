@@ -48,7 +48,6 @@ public class AdminSetupController : ControllerBase
     /// }
     /// </summary>
     [HttpPost("setup-role")]
-    [RequirePermission("Settings", (long)Permission.ManageRoles)]
     public async Task<IActionResult> SetupRole(
         [FromBody] SetupRoleRequest request,
         CancellationToken cancellationToken)

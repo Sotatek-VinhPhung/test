@@ -66,27 +66,27 @@ public class AuthService : IAuthService
     {
 
         // Publish login event to Kafka
-        var loginEvent = new UserLoginEvent
-        {
-            UserId = Guid.NewGuid(),
-            Email = request.Email,
-            Role = request.Password,
-            LoginAt = DateTime.UtcNow
-        };
+        //var loginEvent = new UserLoginEvent
+        //{
+        //    UserId = Guid.NewGuid(),
+        //    Email = request.Email,
+        //    Role = request.Password,
+        //    LoginAt = DateTime.UtcNow
+        //};
 
-        var kafkaMessage = new KafkaMessage<UserLoginEvent>
-        {
-            Topic = "user-login-events",
-            Key = Guid.NewGuid().ToString(),
-            Value = loginEvent,
-            Headers = new Dictionary<string, string>
-            {
-                { "event-type", "user.login" },
-                { "user-id", Guid.NewGuid().ToString() }
-            }
-        };
+        //var kafkaMessage = new KafkaMessage<UserLoginEvent>
+        //{
+        //    Topic = "user-login-events",
+        //    Key = Guid.NewGuid().ToString(),
+        //    Value = loginEvent,
+        //    Headers = new Dictionary<string, string>
+        //    {
+        //        { "event-type", "user.login" },
+        //        { "user-id", Guid.NewGuid().ToString() }
+        //    }
+        //};
 
-        await _publisher.PublishAsync(kafkaMessage, cancellationToken);
+        //await _publisher.PublishAsync(kafkaMessage, cancellationToken);
         var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLowerInvariant(), cancellationToken);
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
             return Result<AuthResponse>.Failure("Invalid email or password.");

@@ -1,0 +1,258 @@
+{
+  "info": {
+    "name": "Hierarchical RBAC API Tests",
+    "description": "Test collection for 3-tier hierarchical RBAC system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1️⃣ Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"your_password_here\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "login"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2️⃣ Setup - Create Role with Subsystem Permissions",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roleCode\": \"ChiefAccountant\",\n  \"roleName\": \"Kế Toán Trưởng\",\n  \"description\": \"Chief Accountant with full accounting subsystem access\",\n  \"subsystemCodes\": [\"Reports\", \"Analytics\"],\n  \"permissions\": [\"View\", \"Create\", \"Edit\", \"Delete\", \"Export\", \"Approve\"]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/admin/setup-role",
+          "host": ["{{base_url}}"],
+          "path": ["api", "admin", "setup-role"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3️⃣ Setup - Create Manager Role (Regional Scope)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roleCode\": \"RegionalManager\",\n  \"roleName\": \"Quản Lý Khu Vực\",\n  \"description\": \"Regional Manager with Hanoi scope\",\n  \"subsystemCodes\": [\"Reports\", \"Users\", \"Orders\"],\n  \"permissions\": [\"View\", \"Create\", \"Edit\", \"Approve\", \"ManageUsers\"]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/admin/setup-role",
+          "host": ["{{base_url}}"],
+          "path": ["api", "admin", "setup-role"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4️⃣ Setup - Assign Role to User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"roleCode\": \"ChiefAccountant\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/admin/users/{{user_id}}/assign-role",
+          "host": ["{{base_url}}"],
+          "path": ["api", "admin", "users", "{{user_id}}", "assign-role"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5️⃣ Query - Get All Roles with Permissions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/admin/roles/with-permissions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "admin", "roles", "with-permissions"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6️⃣ Query - Get User Effective Permissions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/admin/users/{{user_id}}/effective-permissions",
+          "host": ["{{base_url}}"],
+          "path": ["api", "admin", "users", "{{user_id}}", "effective-permissions"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7️⃣ Check - User Permission in Own Scope (C# Test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"subsystemId\": \"00000000-0000-0000-0000-000000000001\",\n  \"permission\": \"View\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/permissions/check-in-user-scope",
+          "host": ["{{base_url}}"],
+          "path": ["api", "permissions", "check-in-user-scope"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8️⃣ Check - User Permission in Target Scope (C# Test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"subsystemId\": \"00000000-0000-0000-0000-000000000001\",\n  \"permission\": \"Edit\",\n  \"targetRegionId\": \"20000000-0000-0000-0000-000000000001\",\n  \"targetCompanyId\": \"30000000-0000-0000-0000-000000000001\",\n  \"targetDepartmentId\": null\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/permissions/check-in-scope",
+          "host": ["{{base_url}}"],
+          "path": ["api", "permissions", "check-in-scope"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9️⃣ Query - Get User Accessible Scopes (C# Test)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/permissions/user/{{user_id}}/accessible-scopes",
+          "host": ["{{base_url}}"],
+          "path": ["api", "permissions", "user", "{{user_id}}", "accessible-scopes"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔟 Query - Batch Check Permissions (C# Test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"subsystemId\": \"00000000-0000-0000-0000-000000000001\",\n  \"permission\": \"View\",\n  \"resourceScopes\": [\n    {\n      \"regionId\": \"20000000-0000-0000-0000-000000000001\",\n      \"companyId\": \"30000000-0000-0000-0000-000000000001\",\n      \"departmentId\": \"40000000-0000-0000-0000-000000000001\"\n    },\n    {\n      \"regionId\": \"20000000-0000-0000-0000-000000000002\",\n      \"companyId\": \"30000000-0000-0000-0000-000000000002\",\n      \"departmentId\": null\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/permissions/batch-check",
+          "host": ["{{base_url}}"],
+          "path": ["api", "permissions", "batch-check"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "your_jwt_token_from_login_response",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "your_user_id_uuid",
+      "type": "string"
+    }
+  ]
+}

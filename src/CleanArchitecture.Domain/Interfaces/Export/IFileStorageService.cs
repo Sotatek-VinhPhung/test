@@ -52,4 +52,10 @@ public interface IFileStorageService
         string bucketName,
         string objectName,
         CancellationToken cancellationToken = default);
+
+    Task<string> GetPresignedUrlAsync(
+    string bucket,
+    string objectName,
+    int expiresInSeconds = 3600,
+    CancellationToken cancellationToken = default);
 }

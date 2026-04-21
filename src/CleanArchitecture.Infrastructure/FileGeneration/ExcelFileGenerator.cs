@@ -1,12 +1,9 @@
 using CleanArchitecture.Domain.Interfaces.Export;
+
 using ClosedXML.Excel;
 
 namespace CleanArchitecture.Infrastructure.FileGeneration;
 
-/// <summary>
-/// Excel file generator using ClosedXML library.
-/// Generates .xlsx files from generic data collections.
-/// </summary>
 public class ExcelFileGenerator : IExcelFileGenerator
 {
     public async Task<Stream> GenerateAsync<T>(
@@ -20,46 +17,109 @@ public class ExcelFileGenerator : IExcelFileGenerator
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add(sheetName);
 
-            var dataList = data.ToList();
-            if (!dataList.Any())
+            var normalized = Normalize(data);
+
+            if (!normalized.Any())
             {
-                var stream = new MemoryStream();
-                workbook.SaveAs(stream);
-                stream.Position = 0;
-                return stream;
+                var emptyStream = new MemoryStream();
+                workbook.SaveAs(emptyStream);
+                emptyStream.Position = 0;
+                return (Stream)emptyStream;
             }
 
-            // Get properties from first object
-            var properties = typeof(T).GetProperties();
+            var headers = normalized.First().Keys.ToList();
 
-            // Write headers
-            for (int i = 0; i < properties.Length; i++)
+            // 🔥 Header
+            for (int col = 0; col < headers.Count; col++)
             {
-                var header = properties[i].Name;
-                worksheet.Cell(1, i + 1).Value = header;
-                worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+                var cell = worksheet.Cell(1, col + 1);
+                cell.Value = headers[col];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.LightGray;
             }
 
-            // Write data rows
-            for (int row = 0; row < dataList.Count; row++)
+            // 🔥 Data
+            for (int row = 0; row < normalized.Count; row++)
             {
-                var item = dataList[row];
-                for (int col = 0; col < properties.Length; col++)
+                var rowData = normalized[row];
+
+                for (int col = 0; col < headers.Count; col++)
                 {
-                    var value = properties[col].GetValue(item);
-                    worksheet.Cell(row + 2, col + 1).Value = value?.ToString() ?? string.Empty;
+                    var value = rowData.ContainsKey(headers[col])
+                        ? rowData[headers[col]]
+                        : null;
+
+                    var cell = worksheet.Cell(row + 2, col + 1);
+
+                    if (value is DateTime dt)
+                    {
+                        cell.Value = dt;
+                        cell.Style.DateFormat.Format = "yyyy-MM-dd HH:mm:ss";
+                    }
+                    else
+                    {
+                        cell.SetValue(value?.ToString() ?? "");
+                    }
                 }
             }
 
-            // Auto-fit columns
             worksheet.Columns().AdjustToContents();
 
-            // Save to stream
-            var outputStream = new MemoryStream();
-            workbook.SaveAs(outputStream);
-            outputStream.Position = 0;
-            return outputStream;
+            var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+
+            // 🔥 QUAN TRỌNG
+            stream.Position = 0;
+
+            return (Stream)stream;
         }, cancellationToken);
+    }
+
+    // ================================
+    // 🔥 Normalize tất cả về Dictionary
+    // ================================
+    private List<Dictionary<string, object?>> Normalize<T>(IEnumerable<T> data)
+    {
+        var result = new List<Dictionary<string, object?>>();
+
+        foreach (var item in data)
+        {
+            if (item == null)
+                continue;
+
+            // 👉 Nếu đã là Dictionary
+            if (item is Dictionary<string, object?> dict)
+            {
+                result.Add(dict);
+                continue;
+            }
+
+            // 👉 Nếu là object (DTO)
+            var row = new Dictionary<string, object?>();
+
+            var props = item.GetType().GetProperties();
+            foreach (var prop in props)
+            {
+                row[prop.Name] = prop.GetValue(item);
+            }
+
+            result.Add(row);
+        }
+
+        return result;
+    }
+
+
+    private object FormatValue(object? value)
+    {
+        if (value == null)
+            return "";
+
+        return value switch
+        {
+            DateTime dt => dt,
+            bool b => b,
+            _ => value
+        };
     }
 }

@@ -49,19 +49,25 @@ public class ExportedFileConfiguration : IEntityTypeConfiguration<ExportedFile>
 
         builder.Property(x => x.UpdatedAt);
 
-        builder.ToTable("ExportedFiles");
+        builder.ToTable("exported_files");
+
+        // Foreign key
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Indexes
         builder.HasIndex(x => x.UserId)
-            .HasDatabaseName("IX_ExportedFiles_UserId");
+            .HasDatabaseName("idx_exported_files_user_id");
 
         builder.HasIndex(x => x.CreatedAt)
-            .HasDatabaseName("IX_ExportedFiles_CreatedAt");
-
-        builder.HasIndex(x => new { x.UserId, x.CreatedAt })
-            .HasDatabaseName("IX_ExportedFiles_UserId_CreatedAt");
+            .HasDatabaseName("idx_exported_files_created_at");
 
         builder.HasIndex(x => x.ExpiresAt)
-            .HasDatabaseName("IX_ExportedFiles_ExpiresAt");
+            .HasDatabaseName("idx_exported_files_expires_at");
+
+        builder.HasIndex(x => x.Bucket)
+            .HasDatabaseName("idx_exported_files_bucket");
     }
 }
