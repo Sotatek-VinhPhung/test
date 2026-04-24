@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Subsystem> Subsystems => Set<Subsystem>();
     public DbSet<RoleSubsystemPermission> RoleSubsystemPermissions => Set<RoleSubsystemPermission>();
     public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
+    public DbSet<Template> Templates { get; set; } = null!;
 
     // Organizational Hierarchy tables (for hierarchical RBAC)
     public DbSet<Region> Regions => Set<Region>();

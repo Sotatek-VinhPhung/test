@@ -17,6 +17,8 @@ public interface IExportedFileRepository
     /// </summary>
     Task<ExportedFile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<ExportedFile?> FindByCacheKeyAsync(string cacheKey, CancellationToken ct = default);
+
     /// <summary>
     /// Get all exported files for a user.
     /// </summary>

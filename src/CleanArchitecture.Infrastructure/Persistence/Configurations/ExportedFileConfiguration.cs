@@ -69,5 +69,15 @@ public class ExportedFileConfiguration : IEntityTypeConfiguration<ExportedFile>
 
         builder.HasIndex(x => x.Bucket)
             .HasDatabaseName("idx_exported_files_bucket");
+
+        builder.Property(x => x.CacheKey)
+        .HasMaxLength(100)
+        .HasColumnName("CacheKey");
+
+            builder.Property(x => x.TemplateVersion)
+                .HasColumnName("TemplateVersion");
+
+            builder.HasIndex(x => x.CacheKey)
+                .HasDatabaseName("idx_exported_files_cache_key");
     }
 }

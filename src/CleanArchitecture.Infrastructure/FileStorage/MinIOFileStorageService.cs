@@ -142,4 +142,49 @@ public class MinIOFileStorageService : IFileStorageService
 
             return await _minioClient.PresignedGetObjectAsync(args);
         }
+
+    public async Task<Stream> DownloadFileAsync(
+    string bucket,
+    string objectName,
+    CancellationToken ct = default)
+    {
+        var memStream = new MemoryStream();
+
+        var args = new Minio.DataModel.Args.GetObjectArgs()
+            .WithBucket(bucket)
+            .WithObject(objectName)
+            .WithCallbackStream(stream =>
+            {
+                stream.CopyTo(memStream);
+            });
+
+        await _minioClient.GetObjectAsync(args, ct);
+
+        memStream.Position = 0;
+        return memStream;
+    }
+
+    public async Task<bool> ObjectExistsAsync(
+        string bucket,
+        string objectName,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var args = new Minio.DataModel.Args.StatObjectArgs()
+                .WithBucket(bucket)
+                .WithObject(objectName);
+
+            await _minioClient.StatObjectAsync(args, ct);
+            return true;
+        }
+        catch (Minio.Exceptions.ObjectNotFoundException)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

@@ -69,4 +69,15 @@ public class ExportedFileRepository : IExportedFileRepository
     {
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<ExportedFile?> FindByCacheKeyAsync(
+    string cacheKey, CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _context.ExportedFiles
+            .Where(x => x.CacheKey == cacheKey
+                     && (x.ExpiresAt == null || x.ExpiresAt > now))
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
 }

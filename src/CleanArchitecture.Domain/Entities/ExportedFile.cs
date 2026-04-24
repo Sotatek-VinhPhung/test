@@ -51,4 +51,6 @@ public class ExportedFile : BaseEntity
     /// Export expiration date (optional).
     /// </summary>
     public DateTime? ExpiresAt { get; set; }
+    public string? CacheKey { get; set; }
+    public int? TemplateVersion { get; set; }
 }

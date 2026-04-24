@@ -58,4 +58,10 @@ public interface IFileStorageService
     string objectName,
     int expiresInSeconds = 3600,
     CancellationToken cancellationToken = default);
+
+    Task<bool> ObjectExistsAsync(string bucket, string objectName, CancellationToken ct = default);
+    Task<Stream> DownloadFileAsync(
+    string bucket,
+    string objectName,
+    CancellationToken ct = default);
 }

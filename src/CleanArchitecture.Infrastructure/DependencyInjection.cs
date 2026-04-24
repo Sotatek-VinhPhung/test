@@ -1,27 +1,30 @@
-using System.Text;
 using CleanArchitecture.Application.Common.Interfaces;
-using CleanArchitecture.Application.Permissions.Interfaces;
-using CleanArchitecture.Application.Permissions.Services;
-using CleanArchitecture.Application.Permissions.Helpers;
-using CleanArchitecture.Application.Notifications.Interfaces;
 using CleanArchitecture.Application.Export.Interfaces;
 using CleanArchitecture.Application.Export.Services;
+using CleanArchitecture.Application.Notifications.Interfaces;
+using CleanArchitecture.Application.Permissions.Helpers;
+using CleanArchitecture.Application.Permissions.Interfaces;
+using CleanArchitecture.Application.Permissions.Services;
 using CleanArchitecture.Domain.Interfaces;
 using CleanArchitecture.Domain.Interfaces.Export;
 using CleanArchitecture.Infrastructure.Auth;
-using CleanArchitecture.Infrastructure.Persistence;
-using CleanArchitecture.Infrastructure.Persistence.Services;
-using CleanArchitecture.Infrastructure.Persistence.Repositories;
-using CleanArchitecture.Infrastructure.Permissions;
-using CleanArchitecture.Infrastructure.Notifications;
-using CleanArchitecture.Infrastructure.FileStorage;
 using CleanArchitecture.Infrastructure.FileGeneration;
+using CleanArchitecture.Infrastructure.FileStorage;
+using CleanArchitecture.Infrastructure.Messaging;
+using CleanArchitecture.Infrastructure.Messaging.Handlers;
+using CleanArchitecture.Infrastructure.Notifications;
+using CleanArchitecture.Infrastructure.Permissions;
+using CleanArchitecture.Infrastructure.Persistence;
+using CleanArchitecture.Infrastructure.Persistence.Repositories;
+using CleanArchitecture.Infrastructure.Persistence.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Minio;
+using System.Text;
 
 namespace CleanArchitecture.Infrastructure;
 
@@ -45,12 +48,16 @@ public static class DependencyInjection
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>(); // New RBAC
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IExcelTemplateEngine, ExcelTemplateEngine>();
-        services.AddSingleton<IWordTemplateEngine, WordTemplateEngine>();
+        services.AddSingleton<IWordTemplateEngine, WordContentControlEngine>();
         // Permission services
         services.AddScoped<IUserContextService, UserContextServiceImpl>();
         services.AddScoped<PermissionChecker>();
         services.AddScoped<IRoleManagementService, RoleManagementService>();
         services.AddScoped<IHierarchicalPermissionService, HierarchicalPermissionService>();
+        // Export Job Repository
+        services.AddScoped<IExportJobRepository, ExportJobRepository>();
+        // Export Job Service
+        services.AddScoped<IExportJobService, ExportJobService>();
 
         // Notification services
         services.AddScoped<IPermissionNotificationService, PermissionNotificationService>();
@@ -62,6 +69,10 @@ public static class DependencyInjection
         services.AddScoped<IExcelFileGenerator, ExcelFileGenerator>();
         services.AddScoped<IWordFileGenerator, WordFileGenerator>();
         services.AddScoped<IPdfFileGenerator, PdfFileGenerator>();
+
+        services.AddKafkaServices(
+            configuration,
+            typeof(ExportJobHandler).Assembly);
 
         // Gotenberg
         services.Configure<GotenbergSettings>(
@@ -111,9 +122,21 @@ public static class DependencyInjection
             var templateEngine = sp.GetRequiredService<IExcelTemplateEngine>();
             var wordTemplateEngine = sp.GetRequiredService<IWordTemplateEngine>();
             var gotenbergService = sp.GetRequiredService<IGotenbergService>();
-            return new ExportService(repository, storage, excel, word, pdf, currentUserService, templateEngine, wordTemplateEngine, gotenbergService, "Templates", minioBucket);
+            var templateRepository = sp.GetRequiredService<ITemplateRepository>();
+            var logger = sp.GetRequiredService<ILogger<ExportService>>();
+            return new ExportService(
+                repository, storage, excel, word, pdf,
+                currentUserService, templateEngine, wordTemplateEngine,
+                gotenbergService,
+                templateRepository,
+                logger,
+                "Templates", minioBucket);
         });
-
+        // Template management
+        services.AddMemoryCache();
+        services.AddScoped<ITemplateRepository, TemplateRepository>();
+        services.AddScoped<ITemplateService, TemplateService>();
+        services.AddScoped<ITemplateManagementService, TemplateManagementService>();
         services.AddScoped<IExportService>(sp => sp.GetRequiredService<ExportService>());
 
         // Auth

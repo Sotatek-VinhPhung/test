@@ -63,7 +63,8 @@ public sealed class KafkaClient : IDisposable
             BootstrapServers = _settings.BootstrapServers,
             GroupId = groupIdOverride ?? _settings.GroupId,
             AutoOffsetReset = autoOffsetReset,
-            EnableAutoCommit = _settings.EnableAutoCommit
+            EnableAutoCommit = _settings.EnableAutoCommit,
+            AllowAutoCreateTopics = true   //THÊM DÒNG NÀY
         };
 
         var consumer = new ConsumerBuilder<string, string>(config)

@@ -13,12 +13,15 @@ public class ExportController : ControllerBase
 {
     private readonly IExportService _exportService;
     private readonly ICurrentUserService _currentUserService;
-public ExportController(
+    private readonly IExportJobService _jobService;
+    public ExportController(
     IExportService exportService,
-    ICurrentUserService currentUserService)
+    ICurrentUserService currentUserService,
+    IExportJobService jobService)
     {
         _exportService = exportService ?? throw new ArgumentNullException(nameof(exportService));
         _currentUserService = currentUserService ?? throw new ArgumentNullException(nameof(currentUserService));
+        _jobService = jobService;
     }
 
     // ============================
@@ -189,6 +192,56 @@ public ExportController(
                     error = ex.Message
                 });
         }
+    }
+
+    //pqvinh 
+    // 🔥 Export async - trả jobId ngay
+    [HttpPost("data/async")]
+    public async Task<IActionResult> ExportDataAsync(
+        [FromBody] ExportDataRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null) return BadRequest("Export request is required");
+        if (string.IsNullOrWhiteSpace(request.FileName))
+            return BadRequest("FileName is required");
+        if (request.Format == ExportFormat.Excel && string.IsNullOrWhiteSpace(request.TemplateName))
+            return BadRequest("TemplateName is required for Excel");
+        if (request.Format == ExportFormat.Word && string.IsNullOrWhiteSpace(request.WordTemplateName))
+            return BadRequest("WordTemplateName is required for Word");
+
+        var userId = _currentUserService.UserId
+            ?? throw new UnauthorizedAccessException("User not authenticated");
+
+        var jobId = await _jobService.EnqueueExportAsync(request, userId, cancellationToken);
+
+        return Accepted(new { jobId, status = "Pending", message = "Export queued" });
+    }
+
+    // 🔥 Preview async
+    [HttpPost("preview/async")]
+    public async Task<IActionResult> PreviewPdfAsync(
+        [FromBody] PreviewPdfRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null) return BadRequest("Preview request is required");
+
+        var userId = _currentUserService.UserId
+            ?? throw new UnauthorizedAccessException("User not authenticated");
+
+        var jobId = await _jobService.EnqueuePreviewAsync(request, userId, cancellationToken);
+
+        return Accepted(new { jobId, status = "Pending", message = "Preview queued" });
+    }
+
+    // 🔥 Query trạng thái job (fallback nếu SignalR disconnect)
+    [HttpGet("jobs/{jobId}/status")]
+    public async Task<IActionResult> GetJobStatus(
+        [FromRoute] Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        var status = await _jobService.GetStatusAsync(jobId, cancellationToken);
+        if (status == null) return NotFound($"Job {jobId} not found");
+        return Ok(status);
     }
 
     [HttpPost("preview")]

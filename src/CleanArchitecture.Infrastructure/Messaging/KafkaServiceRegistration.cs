@@ -32,6 +32,8 @@ public static class KafkaServiceRegistration
         services.AddSingleton<IKafkaPublisher, KafkaPublisher>();
         services.AddSingleton<KafkaDlqHandler>();
         services.AddSingleton<IRequestReplyClient, KafkaRequestReplyClient>();
+        // 🔥 THÊM: Topic initializer chạy trước consumer
+        services.AddHostedService<KafkaTopicInitializer>();
 
         // Auto-discover and register handlers + consumer hosted services
         var assemblies = handlerAssemblies.Length > 0

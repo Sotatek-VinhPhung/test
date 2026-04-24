@@ -1,11 +1,12 @@
+using CleanArchitecture.Api.Authorization;
+using CleanArchitecture.Api.Extensions;
+using CleanArchitecture.Api.Hubs;
+using CleanArchitecture.Api.Middleware;
 using CleanArchitecture.Application;
+using CleanArchitecture.Application.Export.Interfaces;
 using CleanArchitecture.Infrastructure;
 using CleanArchitecture.Infrastructure.Caching;
 using CleanArchitecture.Infrastructure.Messaging;
-using CleanArchitecture.Api.Extensions;
-using CleanArchitecture.Api.Authorization;
-using CleanArchitecture.Api.Middleware;
-using CleanArchitecture.Api.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ builder.Services.AddCacheServices(builder.Configuration);
 
 // SignalR
 builder.Services.AddSignalR();
+builder.Services.AddScoped<IExportJobNotifier, SignalRExportJobNotifier>();
 
 // Register factory for IHubContext that will be resolved after app.Build()
 builder.Services.AddScoped(sp =>
@@ -92,6 +94,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHub<ExportJobHub>("/hubs/export-jobs");
 app.MapControllers();
 
 // Map SignalR hubs
